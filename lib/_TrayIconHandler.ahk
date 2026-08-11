@@ -1,11 +1,47 @@
 /************************************************************************
  * @description Handles tray icon events
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/09
- * @version 1.0.0
+ * @date 2026/08/10
+ * @version 1.2.0
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
+
+/*
+; *************************************************************
+### Summary of Usable Features in `TrayIconHandler`
+
+| **Mouse Coordinates** | 
+trayObj.TrayMouseX
+trayObj.TrayMouseY
+Screen X/Y coordinates recorded when hovering over the tray icon.
+
+
+| **Taskbar Orientation** |
+trayObj.GetTaskbarPosition()
+Returns an object containing `{ Pos, Monitor, X, Y, BoundingX, BoundingY }`. `Pos` can be `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`.
+
+
+| **Hover State** |
+trayObj.IsHovering
+Boolean `true` or `false` indicating whether the cursor is currently over the icon.
+
+
+| **Scroll Detection** |
+OnWheelUp
+OnWheelDown
+Fires specifically when scrolling while hovering over the icon.
+
+
+| **Click Disambiguation** |
+OnLeftClick
+OnDoubleClick
+OnRightClick
+OnRightDoubleClick
+Separates single clicks from double clicks cleanly using system double-click speed timing.
+
+*/
+
 
 class TrayIconHandler {
     ; --- User-Defined Callbacks ---
@@ -20,11 +56,12 @@ class TrayIconHandler {
 
     ; --- Internal State Tracking ---
     HoverDelay := 600
-    LeaveDelay := 400  ; Time tolerance (ms) after leaving before triggering OnLeave
+    LeaveDelay := 200  ; Time tolerance (ms) after leaving before triggering OnLeave
+    PaddingBase := 2 ; Base padding before DPI scaling
     IsHovering := false
+	IsMouseOver := false
     TrayMouseX := 0
     TrayMouseY := 0
-    PaddingBase := 24 ; Base padding before DPI scaling
     
     ; Pending Leave Delay Timer Tracking
     PendingLeaveTimer := 0
@@ -66,9 +103,9 @@ class TrayIconHandler {
         this.SetupWheelHotkeys()
     }
 
-    ; --- Mouse Wheel Registration ---
+; --- Mouse Wheel Registration ---
     SetupWheelHotkeys() {
-        HotIf((*) => this.IsHovering)
+        HotIf((*) => this.IsMouseOver)
         Hotkey("WheelUp", (*) => this.CallCallback(this.OnWheelUp, this), "On")
         Hotkey("WheelDown", (*) => this.CallCallback(this.OnWheelDown, this), "On")
         HotIf()
@@ -100,6 +137,12 @@ class TrayIconHandler {
                 ; Update coordinates continuously while over icon
                 this.TrayMouseX := x
                 this.TrayMouseY := y
+
+                ; Instantly mark that mouse is inside icon area for wheel hotkeys
+                this.IsMouseOver := true
+
+                ; Start LeaveWatchdog immediately so leaving during HoverDelay is properly detected
+                SetTimer(this.LeaveWatchdogObj, 100)
 
                 ; If mouse came back while pending a leave, cancel the leave timer
                 if (this.PendingLeaveTimer) {
@@ -203,8 +246,6 @@ class TrayIconHandler {
         this.IsHovering := true
         if (this.OnHover)
             this.CallCallback(this.OnHover, this)
-            
-        SetTimer(this.LeaveWatchdogObj, 100)
     }
 
     LeaveWatchdog() {
@@ -235,6 +276,7 @@ class TrayIconHandler {
         ; Double check if mouse is still outside after the tolerance time
         if (this.IsOutsideTrayBounds(currentX, currentY)) {
             this.IsHovering := false
+			this.IsMouseOver := false
             SetTimer(this.LeaveWatchdogObj, 0)
             this.PendingLeaveTimer := 0
             
@@ -288,6 +330,44 @@ class TrayIconHandler {
 
 
 /* HOW TO USE
+
+; *************************************************************
+### Summary of Usable Features in `TrayIconHandler`
+
+| **Mouse Coordinates** | 
+trayObj.TrayMouseX
+trayObj.TrayMouseY
+Screen X/Y coordinates recorded when hovering over the tray icon.
+
+
+| **Taskbar Orientation** |
+trayObj.GetTaskbarPosition()
+Returns an object containing `{ Pos, Monitor, X, Y, BoundingX, BoundingY }`. `Pos` can be `"Top"`, `"Bottom"`, `"Left"`, or `"Right"`.
+
+
+| **Hover State** |
+trayObj.IsHovering
+Boolean `true` or `false` indicating whether the cursor is currently over the icon.
+
+
+| **Scroll Detection** |
+OnWheelUp
+OnWheelDown
+Fires specifically when scrolling while hovering over the icon.
+
+
+| **Click Disambiguation** |
+OnLeftClick
+OnDoubleClick
+OnRightClick
+OnRightDoubleClick
+Separates single clicks from double clicks cleanly using system double-click speed timing.
+
+
+; *************************************************************
+
+
+
 
 
 ; Disable standard AHK tray context menu so right/double clicks belong exclusively to your library

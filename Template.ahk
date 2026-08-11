@@ -3,14 +3,14 @@
 /************************************************************************
  * @description This is a template as a starting point for your AutoHotKey projects.
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/09
+ * @date 2026/08/10
  * @releasedate 2026/04/24
- * @version 3.1.0.0
+ * @version 3.2.0.0
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.1.0.0"
+AppVersion := "3.2.0.0"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
@@ -62,7 +62,7 @@ A_MenuMaskKey := "vkFF"
 
 ;@region Startup
 ; SPLASHSCREEN
-if (A_Args.Length == 0) && IsSet(SplashScreen){
+if !A_Args.Length && IsSet(SplashScreen){
     SplashScreen()
 }
 
