@@ -1,6 +1,6 @@
 /************************************************************************
  * @description QOL helper functions
- * @author Melo (melo@meloprofessional.com) and Pjtor
+ * @author Melo (melo@meloprofessional.com) and Pj
  * @date 2026/08/12
  * @version 1.0.0
  ***********************************************************************/
