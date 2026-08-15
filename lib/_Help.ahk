@@ -12,37 +12,41 @@ ShowHelpGUI() {
     MyGuiOptions := "+LastFound -SysMenu"
     MyGui := Gui(MyGuiOptions, MyGuiTitle)
     MyGui.SetFont("s" Settings.GuiFontSizeMedium, Settings.GuiFontName)
+	DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", MyGui.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
     offset := 10
 
     if IsFunctionDefined("CustomTitleBar") {
         MyGui.Opt("-Caption")
         titlebar := %"CustomTitleBar"%.Attach(MyGui, {
             Title: MyGuiTitle,
-            ShowIcon: true,
+            ShowIcon: false,
             Min: true,
             Max: false,
             Close: true
         })
         offset := 60
-        DllCall("dwmapi\DwmSetWindowAttribute", "Ptr", MyGui.Hwnd, "UInt", 33, "Int*", 2, "UInt", 4)
     }
 
-    UseAcrylicGUI := false
-    if IsFunctionDefined("FrostedTheme") {
-        UseAcrylicGUI := true
+    UseAcrylicGUI := IsFunctionDefined("FrostedTheme")
+    if UseAcrylicGUI
         offset := 60
-    }
 
+    ; Color Constants
+	TextNormalColor				:= Settings.Theme.%CurrentActualTheme%.TextSmooth
+	TextHoverColor				:= Settings.Theme.%CurrentActualTheme%.TextDefault
+	BGroundNormalColor			:= Settings.Theme.%CurrentActualTheme%.Bg
+	BGroundHoverColor			:= Settings.Theme.%CurrentActualTheme%.BgHover
+	GitNormalColor				:= "5865F2"
+	GitHoverColor				:= "5896f2"
 
-    TextNormalColor := "CCCCCC"
-    TextHoverColor  := "FFFFFF"
-    BGroundNormalColor  := "1b1b1b"
-    BGroundHoverColor  := "313131"
-    isHovering := false
-
-;    if UseAcrylicGUI {
-;        MyGui.SetFont("c" TextNormalColor " s" Settings.GuiFontSizeMedium, Settings.GuiFontName)
-;    }
+	if UseAcrylicGUI {
+		TextNormalColor			:= "CCCCCC"
+		TextHoverColor			:= "FFFFFF"
+		BGroundNormalColor		:= "1b1b1b"
+		BGroundHoverColor		:= "313131"
+		GitNormalColor			:= "5865F2"
+		GitHoverColor			:= "5896f2"
+	}
 
     ; Define layout constants
     GuiWidth            := 640
@@ -101,29 +105,36 @@ ShowHelpGUI() {
     MyGui.SetFont("s" Settings.GuiFontSizeMedium " w300")
 
     ; 4. Button
-    MyGui.SetFont("s" Settings.GuiFontSizeMedium " w300", Settings.GuiFontName)
-    ; 5.1 align
-;        btnX := MyGui.MarginX ; left
-;        btnX := (GuiWidth - BtnWidth) // 2 ; center
-        btnX := GuiWidth - MyGui.MarginX - BtnWidth ; right
-;    MyGui.AddButton("x" btnX " y+25 w" BtnWidth " h30 Default", "&OK").OnEvent("Click", (*) => myGui.Destroy())
-;    MyGui.AddButton("x" btnX " y+25 w" BtnWidth " h30 Default", "&OK").OnEvent("Click", CleanDestroy)
+;	btnX := MyGui.MarginX ; left
+;	btnX := (GuiWidth - BtnWidth) // 2 ; center
+	btnX := GuiWidth - MyGui.MarginX - BtnWidth ; right
 
 
     if UseAcrylicGUI {
-;        HoverSettingsGui.SetFont("s" Settings.GuiFontSizeBig " C727272 w700", Settings.GuiFontName)
-        MyGui.SetFont("s" Settings.GuiFontSizeBig " CWhite w700", Settings.GuiFontName)
-        btnSave := MyGui.Add("Text", "x" btnX " y+25 w" BtnWidth " h30 Center 0x0200 Background" BGroundNormalColor " +Border", "OK")
+        MyGui.SetFont("s" Settings.GuiFontSizeMedium " CWhite w700", Settings.GuiFontName)
+        btnSave := MyGui.Add("Text", "x" btnX " y+10 w" BtnWidth " h25 Center 0x0200 Background" BGroundNormalColor " +Border", "OK")
         btnSave.BypassTheme := true
+
     } else {
         MyGui.SetFont("s" Settings.GuiFontSizeMedium " w300", Settings.GuiFontName)
-        btnSave := MyGui.AddButton("x" btnX " y+25 w" BtnWidth " h30 Default", "&OK")
+        btnSave := MyGui.AddButton("x" btnX " y+10 w" BtnWidth " h25 Default", "&OK")
     }
 
     btnSave.OnEvent("Click", CleanDestroy)
     MyGui.OnEvent("Close", CleanDestroy)
     MyGui.OnEvent("Escape", CleanDestroy)
 
+	if IsSet(GuiTracker) {
+		tracker := GuiTracker()
+		tracker.AddGui := MyGui
+
+		tracker.RegisterControl(btnSave, Map(
+			"OnEnter", (ctrl) => (ctrl.SetFont("c" TextHoverColor), ctrl.Opt("+Background" BGroundHoverColor)),
+			"OnLeave", (ctrl) => (ctrl.SetFont("c" TextNormalColor), ctrl.Opt("+Background" BGroundNormalColor))
+		))
+	}
+
+    ; Apply Themes
     if UseAcrylicGUI {
         if IsFunctionDefined("ApplyThemeToGui")
             %"ApplyThemeToGui"%(MyGui, "Dark")
@@ -131,76 +142,14 @@ ShowHelpGUI() {
             %"FrostedTheme"%.Apply(MyGui)
     } else {
         if IsFunctionDefined("ApplyThemeToGui") {
-    	    %"ApplyThemeToGui"%(MyGui)
-        	%"WatchedGUIs"%.Push(MyGui)
-	    }
+            %"ApplyThemeToGui"%(MyGui)
+            %"WatchedGUIs"%.Push(MyGui)
+        }
     }
 
     MyGui.Show("w" GuiWidth)
 
-    if (App.Github || UseAcrylicGUI) {
-
-        if IsSet(MessageManager) {
-            MessageManager.Register(0x0200, OnMouseMoveMyGui)
-        } else {
-            OnMessage(0x0200, OnMouseMoveMyGui)
-        }
-    }
-
-    OnMouseMoveMyGui(wParam, lParam, msg, hwnd) {
-        try {
-            if (!btnSave)
-                return
-        } catch {
-            return
-        }
-        
-        if (hwnd == btnSave.Hwnd) {
-
-            ctrl := GuiCtrlFromHwnd(hwnd)
-
-            if (!isHovering) {
-                    isHovering := true
-                    
-                    TRACKMOUSEEVENT := Buffer(A_PtrSize == 8 ? 24 : 16, 0)
-                    NumPut("UInt", TRACKMOUSEEVENT.Size, TRACKMOUSEEVENT, 0)
-                    NumPut("UInt", 2,                    TRACKMOUSEEVENT, 4)
-                    NumPut("Ptr",  ctrl.Hwnd,          TRACKMOUSEEVENT, A_PtrSize == 8 ? 8 : 8)
-                    DllCall("TrackMouseEvent", "Ptr", TRACKMOUSEEVENT)
-                    
-                    if IsSet(MessageManager) {
-                        MessageManager.Register(0x02A3, OnMouseLeaveMyGui)
-                    } else {
-                        OnMessage(0x02A3, OnMouseLeaveMyGui)
-                    }
-            }
-            if UseAcrylicGUI {
-                ctrl.SetFont("c" TextHoverColor)
-                ctrl.Opt("+Background" BGroundHoverColor)
-            }
-        }
-    }    
-
-    OnMouseLeaveMyGui(wParam, lParam, msg, hwnd) {
-        try {
-            if (hwnd == btnSave.Hwnd && UseAcrylicGUI) {
-                ctrl := GuiCtrlFromHwnd(hwnd)
-                ctrl.SetFont("c" TextNormalColor)
-                ctrl.Opt("+Background" BGroundNormalColor)
-                isHovering := false
-            }
-        }
-    }
-
     CleanDestroy(*) {
-        if IsSet(MessageManager) {
-            MessageManager.Unregister(0x0200, OnMouseMoveMyGui)
-            MessageManager.Unregister(0x02A3, OnMouseLeaveMyGui)
-        } else {
-            OnMessage(0x0200, OnMouseMoveMyGui, 0)
-            OnMessage(0x02A3, OnMouseLeaveMyGui, 0)
-        }
-        
         if IsFunctionDefined("RemoveGuiFromArray")
             %"RemoveGuiFromArray"%(MyGui)
         MyGui.Destroy()

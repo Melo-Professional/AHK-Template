@@ -198,10 +198,18 @@ class GuiTracker {
         GuiTracker.boundDispatchRClick   := (wParam, lParam, msg, hwnd) => GuiTracker._DispatchEvent("OnRClick", hwnd)
         GuiTracker.boundOnMouseWheel     := ObjBindMethod(GuiTracker, "_OnMouseWheel")
 
-        OnMessage(0x0201, GuiTracker.boundDispatchLClick)
-        OnMessage(0x0203, GuiTracker.boundDispatchDblClick)
-        OnMessage(0x0204, GuiTracker.boundDispatchRClick)
-        OnMessage(0x020A, GuiTracker.boundOnMouseWheel)
+		if IsSet(MessageManager) {
+            MessageManager.Register(0x0201, GuiTracker.boundDispatchLClick)
+            MessageManager.Register(0x0203, GuiTracker.boundDispatchDblClick)
+            MessageManager.Register(0x0204, GuiTracker.boundDispatchRClick)
+            MessageManager.Register(0x020A, GuiTracker.boundOnMouseWheel)
+        } else {
+			OnMessage(0x0201, GuiTracker.boundDispatchLClick)
+			OnMessage(0x0203, GuiTracker.boundDispatchDblClick)
+			OnMessage(0x0204, GuiTracker.boundDispatchRClick)
+			OnMessage(0x020A, GuiTracker.boundOnMouseWheel)
+        }
+
 
         GuiTracker.hooksRegistered := true
     }
@@ -210,10 +218,17 @@ class GuiTracker {
         if (!GuiTracker.hooksRegistered)
             return
 
-        OnMessage(0x0201, GuiTracker.boundDispatchLClick, 0)
-        OnMessage(0x0203, GuiTracker.boundDispatchDblClick, 0)
-        OnMessage(0x0204, GuiTracker.boundDispatchRClick, 0)
-        OnMessage(0x020A, GuiTracker.boundOnMouseWheel, 0)
+		if IsSet(MessageManager) {
+            MessageManager.Unregister(0x0201, GuiTracker.boundDispatchLClick)
+            MessageManager.Unregister(0x0203, GuiTracker.boundDispatchDblClick)
+            MessageManager.Unregister(0x0204, GuiTracker.boundDispatchRClick)
+            MessageManager.Unregister(0x020A, GuiTracker.boundOnMouseWheel)
+        } else {
+			OnMessage(0x0201, GuiTracker.boundDispatchLClick, 0)
+			OnMessage(0x0203, GuiTracker.boundDispatchDblClick, 0)
+			OnMessage(0x0204, GuiTracker.boundDispatchRClick, 0)
+			OnMessage(0x020A, GuiTracker.boundOnMouseWheel, 0)
+		}
 
         GuiTracker.boundDispatchLClick   := 0
         GuiTracker.boundDispatchDblClick := 0
