@@ -3,14 +3,14 @@
 /************************************************************************
  * @description This is a template as a starting point for your AutoHotKey projects.
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/15
+ * @date 2026/08/18
  * @releasedate 2026/04/24
- * @version 3.5.1.100
+ * @version 3.5.3.107
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.5.1.100"
+AppVersion := "3.5.3.107"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
@@ -28,8 +28,8 @@ A_IconHidden := true
 A_MenuMaskKey := "vkFF"
 ; --- Optimization Settings ---
 ;ProcessSetPriority("High")
-;ListLines(False)
-;KeyHistory(0)
+ListLines(False)
+KeyHistory(0)
 ;A_MaxHotkeysPerInterval := 5000
 ;A_HotkeyInterval := 1000
 ;@endregion
@@ -37,22 +37,23 @@ A_MenuMaskKey := "vkFF"
 ;@region Includes
 #Include *i <_CompilerDirectives>
 #Include *i <_Backup>
-#Include *i <_HelperFuncs>
-#Include *i <_Config&Vars>
 #Include *i <_SaveSettings>
+#Include *i <_Config&Vars>
+#Include *i <_HelperFuncs>
 ;#Include *i <_MessageManager>
 ;#Include *i <_TrayIconHandler>
 #Include *i <_Theme>
 ;#Include *i <_FrostedTheme>
 #Include *i <_TitleBar>
-#Include *i <_GuiTracker>
+;#Include *i <_GuiTracker>
 ;#Include *i <_ModernSlider>
 ;#Include *i <_Color_Picker_Dialog>
 ;#Include *i <_HotkeysRecorder>
 ;#Include *i <_ODColors>
-#Include *i <_OSDCustom>
-#Include *i <_AutoUpdater>
+;#Include *i <_OSDCustom>
+;#Include *i <_AutoUpdater>
 #Include *i <_SplashScreen>
+;#Include *i <_SplashOSD>
 #Include *i <_About>
 #Include *i <_Help>
 #Include *i <_Menu>
@@ -61,26 +62,36 @@ A_MenuMaskKey := "vkFF"
 #Include *i <Menu_Custom>
 ;@endregion
 
+
 ;@region Startup
-if !A_Args.Length && IsSet(SplashScreen) {
-    SplashScreen()
+if !A_Args.Length {
+	if IsSet(SplashScreen) {
+	    SplashScreen()
+	} else if isSet(SplashScreenOSD) {
+		SplashScreenOSD()
+	}
 }
-IsFunctionDefined("StartMenu")			? %"StartMenu"%()			: ""
-IsFunctionDefined("Menu_Custom")		? %"Menu_Custom"%()			: ""
-IsFunctionDefined("StartAutoUpdater")	? %"StartAutoUpdater"%()	: ""
+
+IsSet(StartMenu) ? StartMenu() : 0
+IsSet(Menu_Custom) ? Menu_Custom() : 0
+IsSet(StartAutoUpdater) ? StartAutoUpdater() : 0
 ;@endregion
 ;@endregion
 
 ;@region Main
 
+;@region Hotkeys
+#HotIf !A_IsCompiled
+^p::IsSet(ReloadClean) ? ReloadClean() : Reload()
+#HotIf
 ;@endregion
-CheckReloadArgs()
+
+
+
+;@endregion
+IsSet(CheckReloadArgs) ? CheckReloadArgs() : 0
 
 ;throw Error('Message', A_ThisFunc, )
 ;a := "test"
 ;OutputDebug(a) ; debug tab
-
-#HotIf !A_IsCompiled
-^p::ReloadClean()
-#HotIf
 
