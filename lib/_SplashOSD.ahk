@@ -2,7 +2,7 @@
  * @description This is a Splash Screen made of Custom OSD
  * @author Melo (melo@meloprofessional.com)
  * @date 2026/08/18
- * @version 1.2.0.0
+ * @version 1.2.0.100
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -59,7 +59,6 @@ SplashScreenOSD(timeout := 1800) {	; send 0 to permanent and -1 to destroy
 	Splash.SetCellText( 1, 3, App.Name, "Center", 4, 1)
 	Splash.SetCellText( 1, 4, "Version " App.Version, "Center", {Fontsize: 8, FontColor: "888888", FontWeight: 100}, 4, 1)
 	Splash.SetCellText( 1, 5, " ")
-	Splash.SetCellProgress(1, 6, 0, "Center", "", 1, 1, {Marquee: true })
 	Splash.SetCellProgress(1, 6,,,,, 1, {Marquee: true })
 	Splash.Show()
 }

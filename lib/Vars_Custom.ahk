@@ -7,7 +7,7 @@
 
 ;@region VARS
 ; CUSTOM VARIABLES
-;App.GitHubRepo			:= "https://github.com/Melo-Professional/Repo"
+App.GitHubRepo			:= "https://github.com/Melo-Professional/AHK-Template"
 ;App.NameCutted			:= "Template`nBigName"
 
 /*

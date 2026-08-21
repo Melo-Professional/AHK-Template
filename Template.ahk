@@ -3,19 +3,19 @@
 /************************************************************************
  * @description This is a template as a starting point for your AutoHotKey projects.
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/18
+ * @date 2026/08/20
  * @releasedate 2026/04/24
- * @version 3.5.3.107
+ * @version 3.5.3.111
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.5.3.107"
+AppVersion := "3.5.3.111"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
 
-;_bkpMode := "AppVersionAndMinutes"
+_bkpMode := "AppVersionAndMinutes"
 ;_bkpMinutesThreshold := 1
 
 ;@region Directives
