@@ -1,8 +1,8 @@
 /************************************************************************
  * @description Handles tray icon events
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/15
- * @version 1.2.1 (hover triggers while moving)
+ * @date 2026/08/22
+ * @version 1.2.2 (middle click + software double-click fix)
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -38,6 +38,8 @@ OnLeftClick
 OnDoubleClick
 OnRightClick
 OnRightDoubleClick
+OnMiddleClick
+OnMiddleDoubleClick
 Separates single clicks from double clicks cleanly using system double-click speed timing.
 
 */
@@ -49,6 +51,8 @@ class TrayIconHandler {
     OnDoubleClick := ""
     OnRightClick := ""
     OnRightDoubleClick := ""
+    OnMiddleClick := ""
+    OnMiddleDoubleClick := ""
     OnHover := ""
     OnLeave := ""
     OnWheelUp := ""
@@ -57,10 +61,10 @@ class TrayIconHandler {
     ; --- Internal State Tracking ---
     HoverDelay := 600
     LeaveDelay := 200  ; Time tolerance (ms) after leaving before triggering OnLeave
-	HoverTimerActive := false
+    HoverTimerActive := false
     PaddingBase := 2 ; Base padding before DPI scaling
     IsHovering := false
-	IsMouseOver := false
+    IsMouseOver := false
     TrayMouseX := 0
     TrayMouseY := 0
     
@@ -68,12 +72,12 @@ class TrayIconHandler {
     PendingLeaveTimer := 0
     
     ; Click Debouncing & Double-Click Guard Tracking
-    DoubleClickTime := 150
+    DoubleClickTime := 0 ; Set to 0 so __New queries Windows GetDoubleClickTime (~500ms)
     PendingLeftTimer := 0
     PendingRightTimer := 0
+    PendingMiddleTimer := 0
     IgnoreNextLeftUp := false
-    IgnoreNextRightUp := false
-    
+
     __New(hoverDelayMs := "", leaveDelayMs := "", doubleClickTimeMs := "") {
         if (hoverDelayMs !== "")
             this.HoverDelay := hoverDelayMs
@@ -84,10 +88,9 @@ class TrayIconHandler {
         if (doubleClickTimeMs !== "") {
             this.DoubleClickTime := doubleClickTimeMs
         } else if (this.DoubleClickTime == 0) {
-            ; Query system double click speed threshold ONLY if not manually specified
+            ; Fetch system double-click speed threshold automatically
             sysDblTime := DllCall("User32\GetDoubleClickTime", "UInt")
-            if (sysDblTime > 0)
-                this.DoubleClickTime := sysDblTime
+            this.DoubleClickTime := (sysDblTime > 0) ? sysDblTime : 500
         }
 
         this.HoverWatchdogObj := this.HoverWatchdog.Bind(this)
@@ -104,7 +107,7 @@ class TrayIconHandler {
         this.SetupWheelHotkeys()
     }
 
-; --- Mouse Wheel Registration ---
+    ; --- Mouse Wheel Registration ---
     SetupWheelHotkeys() {
         HotIf((*) => this.IsMouseOver)
         Hotkey("WheelUp", (*) => this.CallCallback(this.OnWheelUp, this), "On")
@@ -152,9 +155,9 @@ class TrayIconHandler {
                 }
 
                 if (!this.IsHovering && !this.HoverTimerActive) {
-					this.HoverTimerActive := true
-					SetTimer(this.HoverWatchdogObj, -this.HoverDelay)
-				}
+                    this.HoverTimerActive := true
+                    SetTimer(this.HoverWatchdogObj, -this.HoverDelay)
+                }
 
             ; --- LEFT CLICK / DOUBLE CLICK ---
             case 0x202: ; WM_LBUTTONUP
@@ -165,13 +168,14 @@ class TrayIconHandler {
                 this.HandleClick("Left", true)
                 return stopMsg
 
-            ; --- RIGHT CLICK / DOUBLE CLICK ---
+            ; --- RIGHT CLICK ---
             case 0x205: ; WM_RBUTTONUP
                 this.HandleClick("Right", false)
                 return stopMsg
 
-            case 0x206: ; WM_RBUTTONDBLCLK
-                this.HandleClick("Right", true)
+            ; --- MIDDLE CLICK ---
+            case 0x208: ; WM_MBUTTONUP
+                this.HandleClick("Middle", false)
                 return stopMsg
         }
     }
@@ -198,33 +202,25 @@ class TrayIconHandler {
 
             ; 3. First button release (WM_LBUTTONUP)
             if (HasMethod(this.OnDoubleClick)) {
-                ; Double-click callback exists: delay single-click execution to see if double-click follows
                 this.PendingLeftTimer := () => (
                     this.PendingLeftTimer := 0,
                     this.CallCallback(this.OnLeftClick, this)
                 )
                 SetTimer(this.PendingLeftTimer, -this.DoubleClickTime)
             } else {
-                ; No double-click callback registered: fire single click IMMEDIATELY
                 this.CallCallback(this.OnLeftClick, this)
             }
         } 
         else if (btn == "Right") {
-            if (isExplicitDbl) {
-                if (this.PendingRightTimer != 0) {
-                    SetTimer(this.PendingRightTimer, 0)
-                    this.PendingRightTimer := 0
-                }
-                this.IgnoreNextRightUp := true
+            ; Second release inside DoubleClickTime triggers double-click
+            if (this.PendingRightTimer != 0) {
+                SetTimer(this.PendingRightTimer, 0)
+                this.PendingRightTimer := 0
                 this.CallCallback(this.OnRightDoubleClick, this)
                 return
             }
 
-            if (this.IgnoreNextRightUp) {
-                this.IgnoreNextRightUp := false
-                return
-            }
-
+            ; First click release logic
             if (HasMethod(this.OnRightDoubleClick)) {
                 this.PendingRightTimer := () => (
                     this.PendingRightTimer := 0,
@@ -235,11 +231,31 @@ class TrayIconHandler {
                 this.CallCallback(this.OnRightClick, this)
             }
         }
+        else if (btn == "Middle") {
+            ; Second release inside DoubleClickTime triggers double-click
+            if (this.PendingMiddleTimer != 0) {
+                SetTimer(this.PendingMiddleTimer, 0)
+                this.PendingMiddleTimer := 0
+                this.CallCallback(this.OnMiddleDoubleClick, this)
+                return
+            }
+
+            ; First click release logic
+            if (HasMethod(this.OnMiddleDoubleClick)) {
+                this.PendingMiddleTimer := () => (
+                    this.PendingMiddleTimer := 0,
+                    this.CallCallback(this.OnMiddleClick, this)
+                )
+                SetTimer(this.PendingMiddleTimer, -this.DoubleClickTime)
+            } else {
+                this.CallCallback(this.OnMiddleClick, this)
+            }
+        }
     }
 
     ; --- Hover & Bounding Box Logic ---
     HoverWatchdog() {
-		this.HoverTimerActive := false
+        this.HoverTimerActive := false
         CoordMode("Mouse", "Screen")
         MouseGetPos(&currentX, &currentY)
         
@@ -256,15 +272,12 @@ class TrayIconHandler {
         MouseGetPos(&currentX, &currentY)
         
         if (this.IsOutsideTrayBounds(currentX, currentY)) {
-            ; Check if we are already waiting for a pending leave timer
             if (this.PendingLeaveTimer)
                 return
 
-            ; Set up tolerance timer
             this.PendingLeaveTimer := () => this.ConfirmLeave()
             SetTimer(this.PendingLeaveTimer, -this.LeaveDelay)
         } else {
-            ; If mouse returned inside bounds during watchdog, cancel pending leave
             if (this.PendingLeaveTimer) {
                 SetTimer(this.PendingLeaveTimer, 0)
                 this.PendingLeaveTimer := 0
@@ -272,27 +285,25 @@ class TrayIconHandler {
         }
     }
 
-	ConfirmLeave() {
-		CoordMode("Mouse", "Screen")
-		MouseGetPos(&currentX, &currentY)
+    ConfirmLeave() {
+        CoordMode("Mouse", "Screen")
+        MouseGetPos(&currentX, &currentY)
 
-		if (this.IsOutsideTrayBounds(currentX, currentY)) {
-			this.IsHovering := false
-			this.IsMouseOver := false
-			this.HoverTimerActive := false ; <-- Add this
-			
-			; Cancel any pending hover timer if mouse left early
-			SetTimer(this.HoverWatchdogObj, 0)
-			
-			SetTimer(this.LeaveWatchdogObj, 0)
-			this.PendingLeaveTimer := 0
-			
-			if (this.OnLeave)
-				this.CallCallback(this.OnLeave, this)
-		} else {
-			this.PendingLeaveTimer := 0
-		}
-	}
+        if (this.IsOutsideTrayBounds(currentX, currentY)) {
+            this.IsHovering := false
+            this.IsMouseOver := false
+            this.HoverTimerActive := false
+            
+            SetTimer(this.HoverWatchdogObj, 0)
+            SetTimer(this.LeaveWatchdogObj, 0)
+            this.PendingLeaveTimer := 0
+            
+            if (this.OnLeave)
+                this.CallCallback(this.OnLeave, this)
+        } else {
+            this.PendingLeaveTimer := 0
+        }
+    }
 
     ; --- DPI & Multi-Monitor Helpers ---
     IsOutsideTrayBounds(x, y) {

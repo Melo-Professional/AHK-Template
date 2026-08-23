@@ -3,14 +3,14 @@
 /************************************************************************
  * @description This is a template as a starting point for your AutoHotKey projects.
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/20
+ * @date 2026/08/22
  * @releasedate 2026/04/24
- * @version 3.5.3.111
+ * @version 3.5.3.112
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.5.3.111"
+AppVersion := "3.5.3.112"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
@@ -94,4 +94,3 @@ IsSet(CheckReloadArgs) ? CheckReloadArgs() : 0
 ;throw Error('Message', A_ThisFunc, )
 ;a := "test"
 ;OutputDebug(a) ; debug tab
-
