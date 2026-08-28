@@ -1,8 +1,8 @@
 /************************************************************************
  * @description Handles tray icon events
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/22
- * @version 1.2.2 (middle click + software double-click fix)
+ * @date 2026/08/27
+ * @version 1.2.3 (double middle click fix)
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -51,12 +51,15 @@ class TrayIconHandler {
     OnDoubleClick := ""
     OnRightClick := ""
     OnRightDoubleClick := ""
-    OnMiddleClick := ""
-    OnMiddleDoubleClick := ""
     OnHover := ""
     OnLeave := ""
-    OnWheelUp := ""
-    OnWheelDown := ""
+	_onMiddleClick := 0
+    _onMiddleDoubleClick := 0
+    _onWheelUp := 0
+    _onWheelDown := 0
+	_wheelUpActive := false
+    _wheelDownActive := false
+    _mbuttonActive := false
 
     ; --- Internal State Tracking ---
     HoverDelay := 600
@@ -72,11 +75,13 @@ class TrayIconHandler {
     PendingLeaveTimer := 0
     
     ; Click Debouncing & Double-Click Guard Tracking
-    DoubleClickTime := 0 ; Set to 0 so __New queries Windows GetDoubleClickTime (~500ms)
+    DoubleClickTime := 300 ; Set to "" so __New queries Windows GetDoubleClickTime (~500ms)
     PendingLeftTimer := 0
     PendingRightTimer := 0
     PendingMiddleTimer := 0
     IgnoreNextLeftUp := false
+	IgnoreNextRightUp := false
+    IgnoreNextMiddleUp := false
 
     __New(hoverDelayMs := "", leaveDelayMs := "", doubleClickTimeMs := "") {
         if (hoverDelayMs !== "")
@@ -87,12 +92,15 @@ class TrayIconHandler {
 
         if (doubleClickTimeMs !== "") {
             this.DoubleClickTime := doubleClickTimeMs
-        } else if (this.DoubleClickTime == 0) {
+        } else {
             ; Fetch system double-click speed threshold automatically
             sysDblTime := DllCall("User32\GetDoubleClickTime", "UInt")
             this.DoubleClickTime := (sysDblTime > 0) ? sysDblTime : 500
         }
 
+		this.MiddleSingleCallback := this.FireMiddleSingleClick.Bind(this)
+        this.RightSingleCallback  := this.FireRightSingleClick.Bind(this)
+		
         this.HoverWatchdogObj := this.HoverWatchdog.Bind(this)
         this.LeaveWatchdogObj := this.LeaveWatchdog.Bind(this)
 
@@ -104,15 +112,90 @@ class TrayIconHandler {
         }
         
         ; 2. Register Mouse Wheel hotkeys via conditional HotIf context
-        this.SetupWheelHotkeys()
+        ;this.SetupWheelHotkeys()
     }
 
-    ; --- Mouse Wheel Registration ---
-    SetupWheelHotkeys() {
+
+	; --- AUTO-REGISTERING PROPERTIES ---
+
+    OnMiddleClick {
+        get => this._onMiddleClick
+        set {
+            this._onMiddleClick := Value
+            this.UpdateHotkeys()
+        }
+    }
+
+    OnMiddleDoubleClick {
+        get => this._onMiddleDoubleClick
+        set {
+            this._onMiddleDoubleClick := Value
+            this.UpdateHotkeys()
+        }
+    }
+
+    OnWheelUp {
+        get => this._onWheelUp
+        set {
+            this._onWheelUp := Value
+            this.UpdateHotkeys()
+        }
+    }
+
+    OnWheelDown {
+        get => this._onWheelDown
+        set {
+            this._onWheelDown := Value
+            this.UpdateHotkeys()
+        }
+    }
+
+	; --- AUTOMATIC HOTKEY MANAGER ---
+
+    UpdateHotkeys() {
         HotIf((*) => this.IsMouseOver)
-        Hotkey("WheelUp", (*) => this.CallCallback(this.OnWheelUp, this), "On")
-        Hotkey("WheelDown", (*) => this.CallCallback(this.OnWheelDown, this), "On")
+
+        ; --- WHEEL UP ---
+        if (HasMethod(this._onWheelUp)) {
+            Hotkey("WheelUp", (*) => this.CallCallback(this._onWheelUp, this), "On")
+            this._wheelUpActive := true
+        } else if (this._wheelUpActive) {
+            Hotkey("WheelUp", "Off")
+            this._wheelUpActive := false
+        }
+
+        ; --- WHEEL DOWN ---
+        if (HasMethod(this._onWheelDown)) {
+            Hotkey("WheelDown", (*) => this.CallCallback(this._onWheelDown, this), "On")
+            this._wheelDownActive := true
+        } else if (this._wheelDownActive) {
+            Hotkey("WheelDown", "Off")
+            this._wheelDownActive := false
+        }
+
+        ; --- MBUTTON UP ---
+        if (HasMethod(this._onMiddleClick) || HasMethod(this._onMiddleDoubleClick)) {
+            Hotkey("~MButton Up", (*) => this.HandleClick("Middle", false), "On")
+            this._mbuttonActive := true
+        } else if (this._mbuttonActive) {
+            Hotkey("~MButton Up", "Off")
+            this._mbuttonActive := false
+        }
+
         HotIf()
+    }
+
+
+
+
+	FireMiddleSingleClick() {
+        this.PendingMiddleTimer := 0
+        this.CallCallback(this.OnMiddleClick, this)
+    }
+
+    FireRightSingleClick() {
+        this.PendingRightTimer := 0
+        this.CallCallback(this.OnRightClick, this)
     }
 
     ; --- Safe Method Invoker ---
@@ -138,17 +221,12 @@ class TrayIconHandler {
                 CoordMode("Mouse", "Screen")
                 MouseGetPos(&x, &y)
 
-                ; Update coordinates continuously while over icon
                 this.TrayMouseX := x
                 this.TrayMouseY := y
-
-                ; Instantly mark that mouse is inside icon area for wheel hotkeys
                 this.IsMouseOver := true
 
-                ; Start LeaveWatchdog immediately so leaving during HoverDelay is properly detected
                 SetTimer(this.LeaveWatchdogObj, 100)
 
-                ; If mouse came back while pending a leave, cancel the leave timer
                 if (this.PendingLeaveTimer) {
                     SetTimer(this.PendingLeaveTimer, 0)
                     this.PendingLeaveTimer := 0
@@ -173,9 +251,8 @@ class TrayIconHandler {
                 this.HandleClick("Right", false)
                 return stopMsg
 
-            ; --- MIDDLE CLICK ---
+            ; --- MIDDLE CLICK (Handled by Hotkey in SetupWheelHotkeys) ---
             case 0x208: ; WM_MBUTTONUP
-                this.HandleClick("Middle", false)
                 return stopMsg
         }
     }
@@ -183,24 +260,24 @@ class TrayIconHandler {
     ; --- Click & Double-Click Debouncer ---
     HandleClick(btn, isExplicitDbl) {
         if (btn == "Left") {
-            ; 1. Explicit Double-Click Message (0x203)
+            ; 1. Native Windows Double-Click Message (0x203)
             if (isExplicitDbl) {
                 if (this.PendingLeftTimer != 0) {
                     SetTimer(this.PendingLeftTimer, 0)
                     this.PendingLeftTimer := 0
                 }
-                this.IgnoreNextLeftUp := true  ; Block the upcoming 2nd WM_LBUTTONUP message
+                this.IgnoreNextLeftUp := true  ; Suppress the 2nd WM_LBUTTONUP
                 this.CallCallback(this.OnDoubleClick, this)
                 return
             }
 
-            ; 2. Ignore the 2nd button release that Windows sends during a double-click sequence
+            ; 2. Ignore 2nd WM_LBUTTONUP sent by OS during a double-click
             if (this.IgnoreNextLeftUp) {
                 this.IgnoreNextLeftUp := false
                 return
             }
 
-            ; 3. First button release (WM_LBUTTONUP)
+            ; 3. Single Click release (or 1st release of double click)
             if (HasMethod(this.OnDoubleClick)) {
                 this.PendingLeftTimer := () => (
                     this.PendingLeftTimer := 0,
@@ -212,7 +289,7 @@ class TrayIconHandler {
             }
         } 
         else if (btn == "Right") {
-            ; Second release inside DoubleClickTime triggers double-click
+            ; Check if we are within the double-click time window
             if (this.PendingRightTimer != 0) {
                 SetTimer(this.PendingRightTimer, 0)
                 this.PendingRightTimer := 0
@@ -220,7 +297,6 @@ class TrayIconHandler {
                 return
             }
 
-            ; First click release logic
             if (HasMethod(this.OnRightDoubleClick)) {
                 this.PendingRightTimer := () => (
                     this.PendingRightTimer := 0,
@@ -232,23 +308,18 @@ class TrayIconHandler {
             }
         }
         else if (btn == "Middle") {
-            ; Second release inside DoubleClickTime triggers double-click
             if (this.PendingMiddleTimer != 0) {
-                SetTimer(this.PendingMiddleTimer, 0)
+                SetTimer(this.MiddleSingleCallback, 0)
                 this.PendingMiddleTimer := 0
-                this.CallCallback(this.OnMiddleDoubleClick, this)
+                this.CallCallback(this._onMiddleDoubleClick, this)
                 return
             }
 
-            ; First click release logic
-            if (HasMethod(this.OnMiddleDoubleClick)) {
-                this.PendingMiddleTimer := () => (
-                    this.PendingMiddleTimer := 0,
-                    this.CallCallback(this.OnMiddleClick, this)
-                )
-                SetTimer(this.PendingMiddleTimer, -this.DoubleClickTime)
+            if (HasMethod(this._onMiddleDoubleClick)) {
+                this.PendingMiddleTimer := 1
+                SetTimer(this.MiddleSingleCallback, -this.DoubleClickTime)
             } else {
-                this.CallCallback(this.OnMiddleClick, this)
+                this.CallCallback(this._onMiddleClick, this)
             }
         }
     }

@@ -1,8 +1,8 @@
 /************************************************************************
  * @description QOL helper functions
  * @author Melo (melo@meloprofessional.com) and Pj
- * @date 2026/08/21
- * @version 1.1.0 (Added Class OnFocusGain and Class OnFocusLoss)
+ * @date 2026/08/27
+ * @version 1.3.2 (Fix GuiAtTray - uses trayObj.TrayMouseX != 0)
  ***********************************************************************/
 
 
@@ -470,4 +470,237 @@ Class OnFocusLoss {
 
         this.PrevActive := CurrentActive
     }
+}
+
+/**
+* @description {@link _Debug|_Debug.ahk}
+* Inspects variable state and caller stack details, outputting results via ToolTip, file logging, or debug console.
+* *Requires a Debug variable set to true.
+* @param {Any} [val="[CHECKPOINT]"]
+* The value, variable, array, or map to inspect.
+* @param {String} [mode="ToolTip"]
+* Output mode: "ToolTip", "Log", "Both", or "OutputDebug".
+* @param {Integer} [duration=3000]
+* Duration in milliseconds for the ToolTip to display before auto-closing.
+* @returns {Any}
+* Returns the input val unchanged to allow inline debugging within expressions.
+* @example Log an object state and display a temporary ToolTip
+* myData := Map("user", "Admin", "active", true)
+* _Debug(myData, "Both", 5000)
+* @example Both log to file and display a 5-second ToolTip
+* _Debug("Critical section completed", "Both", 5000)
+* @example Log an object to file
+* myMap := Map("status", 200, "user", "Admin")
+* _Debug(myMap, "Log")
+* ; Inline usage example:
+* result := _Debug(CalculateTotal(10, 20))
+*/
+_Debug(val := "[CHECKPOINT]", mode := "ToolTip", duration := 6000) {
+	if !IsSet(Debug) || !Debug
+		return
+
+    ; 1. Inspect caller stack frame (-1 gets caller details)
+    caller := Error("", -1)
+    
+    ; Extract caller details safely
+    file := caller.File ? RegExReplace(caller.File, "^.*\\") : "Main Script"
+    line := caller.Line ? caller.Line : "Unknown"
+    fn   := caller.What ? caller.What : "Global Scope"
+    
+    ; 2. Format payload string (Handles Objects/Arrays/Maps gracefully)
+    formattedVal := _Stringify(val)
+    timestamp    := FormatTime(, "yyyy-MM-dd HH:mm:ss")
+    logLine      := Format("[{1}] [{2}:{3} -> {4}()]: {5}", timestamp, file, line, fn, formattedVal)
+    
+    ; 3. Output Handlers
+    if (mode = "Log" || mode = "Both") {
+        try FileAppend(logLine "`n", ".debug_log.txt", "UTF-8")
+    }
+    
+    if (mode = "ToolTip" || mode = "Both") {
+        static tipID := 2
+        currentID := tipID
+        
+        ; Display ToolTip at mouse cursor position
+        MouseGetPos(&x, &y)
+        ToolTip(Format("LINE {1} ({2}):`n{3}", line, fn, formattedVal), x + 15, y + 15, currentID)
+        
+        ; Clear tooltip automatically after specified duration
+        SetTimer () => ToolTip(,,, currentID), -Abs(duration)
+        
+        ; Rotate IDs between 1 and 20 to allow multiple floating tips simultaneously
+        tipID := (tipID >= 20) ? 2 : tipID + 1
+    }
+    
+    if (mode = "OutputDebug") {
+        OutputDebug(logLine "`n")
+    }
+    
+    return val
+
+	_Stringify(obj) {
+		if !IsObject(obj)
+			return String(obj)
+		
+		str := ""
+		if obj is Array {
+			for idx, item in obj
+				str .= (A_Index > 1 ? ", " : "") . _Stringify(item)
+			return "[" str "]"
+		} else if obj is Map {
+			for k, v in obj
+				str .= (A_Index > 1 ? ", " : "") . k ": " . _Stringify(v)
+			return "Map(" str ")"
+		}
+		return Object.Prototype.ToString.Call(obj)
+	}
+}
+
+
+
+/**
+ * @param GuiObj
+ * The GUI to calculate position
+ * @param TrayIconHandlerObj
+ * Optional a IconTrayHandlerObject to get precise hovering coordinates
+ * @param spawnX
+ * The X coordinate
+ * @param spawnY
+ * The Y coordinate
+ * @param w
+ * The width of the GUI
+ * @param h
+ * The Heights of the GUI
+ * @example <caption> Sends a GUI, a icon tray handler and Gets current tray position and returns x and y to show a GUI</caption>
+ * GuiAtTray(MyGui, TrayHandler, &spawnX, &spawnY, &w, &h)
+ * MyGui.Show("x" spawnX " y" spawnY " w" w " h" h)
+ */
+GuiAtTray(GuiObj, TrayIconHandlerObj, &spawnX, &spawnY, &w, &h) {
+
+    ; --- Abort if GUI is already open and visible ---
+    ;if (GuiObj != "" && WinExist(GuiObj.Hwnd) && DllCall("IsWindowVisible", "Ptr", GuiObj.Hwnd)) {
+;    if (GuiObj != "" && WinExist(GuiObj.Hwnd) && DllCall("IsWindowVisible", "Ptr", GuiObj.Hwnd)) {
+;		ToolTip("naoooooooooooo")
+;        return
+;    }
+
+;    if (MainGui == "" || !WinExist(MainGui.Hwnd)) {
+;        CreateAudioMixerGui()
+;    } else {
+;        RefreshSessionsForSelectedDevice()
+;    }
+
+	GuiObj.GetPos(&X, &Y, &GuiWidth, &GuiHeight)
+
+    scaleFactor := A_ScreenDPI / 96
+    w := Floor(GuiWidth * scaleFactor)
+    h := Floor(GuiHeight * scaleFactor)
+    
+    ; 1. Get physical main taskbar dimensions
+    tbHwnd := WinExist("ahk_class Shell_TrayWnd")
+    if tbHwnd {
+        WinGetPos(&tbX, &tbY, &tbW, &tbH, tbHwnd)
+    } else {
+        tbX := 0, tbY := A_ScreenHeight - Floor(48 * scaleFactor), tbW := A_ScreenWidth, tbH := Floor(48 * scaleFactor)
+    }
+
+
+	; 2. Locate System Tray Notification Area explicitly via Windows API (Ignores Mouse)
+	trayNotifyHwnd := ControlGetHwnd("TrayNotifyWnd1", "ahk_class Shell_TrayWnd")
+	if (trayNotifyHwnd) {
+		WinGetPos(&tnX, &tnY, &tnW, &tnH, trayNotifyHwnd)
+		trayCenterX := tnX + (tnW // 2)
+		trayCenterY := tnY + (tnH // 2)
+	} else {
+		MsgBox("no")
+		; Fallback: Far right edge for horizontal taskbars, bottom for vertical
+		if (tbW > tbH) {
+			trayCenterX := tbX + tbW - Floor(80 * scaleFactor)
+			trayCenterY := tbY + (tbH // 2)
+		} else {
+			trayCenterX := tbX + (tbW // 2)
+			trayCenterY := tbY + tbH - Floor(80 * scaleFactor)
+		}
+	}
+
+	; 3. Determine target monitor based purely on physical tray location
+	monIndex := MonitorGetFromPoint(trayCenterX, trayCenterY)
+
+	MonitorGetFromPoint(X, Y) {
+		monitorCount := MonitorGetCount()
+		Loop monitorCount {
+			MonitorGet(A_Index, &Left, &Top, &Right, &Bottom)
+			if (X >= Left && X <= Right && Y >= Top && Y <= Bottom)
+				return A_Index
+		}
+		return MonitorGetPrimary()
+	}
+
+	MonitorGet(monIndex, &mL, &mT, &mR, &mB)
+
+	; 4. Determine taskbar orientation by physical proximity to monitor edges
+	distTop    := Abs(trayCenterY - mT)
+	distBottom := Abs(trayCenterY - mB)
+	distLeft   := Abs(trayCenterX - mL)
+	distRight  := Abs(trayCenterX - mR)
+	minDist    := Min(distTop, distBottom, distLeft, distRight)
+
+	offsetGap := Floor(8 * scaleFactor)
+	useTrayHandler := IsObject(TrayIconHandlerObj) && TrayIconHandlerObj.HasOwnProp("TrayMouseX") && TrayIconHandlerObj.TrayMouseX != 0
+
+	; 5. Position GUI directly adjacent to System Tray (Center-aligned to Tray)
+	if (minDist == distTop) {
+		; Top Taskbar
+		spawnX := useTrayHandler ? TrayIconHandlerObj.TrayMouseX - (w // 2) : trayCenterX - (w // 2)
+		spawnY := useTrayHandler ? max( TrayIconHandlerObj.TrayMouseY, (tbY + tbH)) + offsetGap : (tbY + tbH) + offsetGap
+	} else if (minDist == distBottom) {
+		; Bottom Taskbar
+		spawnX := useTrayHandler ? TrayIconHandlerObj.TrayMouseX - (w // 2) : trayCenterX - (w // 2)
+		spawnY := useTrayHandler ? min( TrayIconHandlerObj.TrayMouseY, tbY) - h - offsetGap : tbY - h - offsetGap
+	} else if (minDist == distLeft) {
+		; Left Taskbar
+		spawnX := useTrayHandler ? max( TrayIconHandlerObj.TrayMouseX, (tbX + tbW)) + offsetGap : (tbX + tbW) + offsetGap
+		spawnY := useTrayHandler ? TrayIconHandlerObj.TrayMouseY - (h // 2) : trayCenterY - (h // 2)
+	} else {
+		; Right Taskbar
+		spawnX := useTrayHandler ? min( TrayIconHandlerObj.TrayMouseX, tbX) - w - offsetGap : tbX - w - offsetGap
+		spawnY := useTrayHandler ? TrayIconHandlerObj.TrayMouseY - (h // 2) : trayCenterY - (h // 2)
+	}
+
+	; ToolTip(useTrayHandler " " TrayIconHandlerObj.TrayMouseX "`n" spawnX "`n" spawnY)
+
+	; 6. Safeguard: Clamp inside physical monitor boundaries so GUI doesn't go off-screen
+	pad := Floor(8 * scaleFactor)
+	if (spawnY < mT + pad)
+		spawnY := mT + pad
+	if (spawnY + h > mB - pad)
+		spawnY := mB - pad - h
+	if (spawnX < mL + pad)
+		spawnX := mL + pad
+	if (spawnX + w > mR - pad)
+		spawnX := mR - pad - w
+
+    
+    ;DllCall("User32\SetWindowPos", "Ptr", MainGui.Hwnd, "Ptr", 0, "Int", spawnX, "Int", spawnY, "Int", w, "Int", h, "UInt", 0x0014 | 0x0040)
+    ;IsGuiVisible := true
+    ;DllCall("user32\SetWindowPos", "Ptr", MainGui.Hwnd, "Ptr", -1, "Int", 0, "Int", 0, "Int", 0, "Int", 0, "UInt", 0x0043)
+
+}
+
+
+
+/**
+ * Parse an object into strings to easy visualization of data
+ * @param obj 
+ * The Object to parse
+ * @returns {String} 
+ * String to print as tooltip or msgbox or whatever
+ * @example <caption> Shows a msgbox with the content of an object from method</caption>
+ * msgbox(ObjToString(TrayHandler.GetTaskbarPosition()))
+ */
+ObjToString(obj) {
+    str := ""
+    for prop, val in obj.OwnProps()
+        str .= prop ": " val "`n"
+    return RTrim(str, "`n")
 }
