@@ -1,8 +1,8 @@
 /************************************************************************
  * @description Autod Updater
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/16
- * @version 1.5.103
+ * @date 2026/08/29
+ * @version 1.5.104 (fix zip folders extraction)
  ************************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -277,11 +277,29 @@ class AutoUpdater {
         psCmd := 'powershell -NoProfile -WindowStyle Hidden -Command "'
         psCmd .= 'Start-Sleep -Seconds 2; '
         
-        ; 1. Rename existing executable to backup
+;        ; 1. Rename existing executable to backup
+;        psCmd .= 'Rename-Item -LiteralPath ' . ps_str(targetFile) . ' -NewName ' . ps_str(backupFileName) . ' -Force; '
+;
+;        ; 2. Install new binary directly over target path
+;        psCmd .= 'Copy-Item -LiteralPath ' . ps_str(payloadFile) . ' -Destination ' . ps_str(newTargetPath) . ' -Force; '
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+		; 1. Rename existing executable to backup
         psCmd .= 'Rename-Item -LiteralPath ' . ps_str(targetFile) . ' -NewName ' . ps_str(backupFileName) . ' -Force; '
 
-        ; 2. Install new binary directly over target path
+        ; 2. Install new binary and associated assets directly over target path
+        if isZip {
+            SplitPath(payloadFile, , &payloadDir)
+            psCmd .= 'Copy-Item -Path (' . ps_str(payloadDir . "\*") . ') -Destination ' . ps_str(targetDir) . ' -Recurse -Force; '
+        }
+        
+        ; Explicitly overwrite the main executable to guarantee the script's original filename is preserved
         psCmd .= 'Copy-Item -LiteralPath ' . ps_str(payloadFile) . ' -Destination ' . ps_str(newTargetPath) . ' -Force; '
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 
         ; 3. Launch new process passing clean arguments with embedded double quotes
         if A_IsCompiled {

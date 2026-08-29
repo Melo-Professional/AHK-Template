@@ -5,12 +5,12 @@
  * @author Melo (melo@meloprofessional.com)
  * @date 2026/08/29
  * @releasedate 2026/04/24
- * @version 3.6.0.0
+ * @version 3.6.0.100
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.6.0.0"
+AppVersion := "3.6.0.100"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
