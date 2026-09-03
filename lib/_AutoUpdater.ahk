@@ -1,8 +1,8 @@
 /************************************************************************
  * @description Autod Updater
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/29
- * @version 1.5.104 (fix zip folders extraction)
+ * @date 2026/08/30
+ * @version 1.5.106 (frequency days color)
  ************************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -56,16 +56,14 @@ class AutoUpdater {
         if !this.App.HasOwnProp("UpdateLastCheck") || this.App.UpdateLastCheck == ""
             this.App.UpdateLastCheck := "1970-01-01"
 
-        if Debug {
-            tooltip("`n" . "has update auto: " this.App.HasOwnProp("UpdateAuto") .
-                    "`n" . "update auto: " this.App.UpdateAuto .
-                    "`n" . "has update frequency days: " this.App.HasOwnProp("UpdateFrequencyDays") .
-                    "`n" . "frequency days: " this.App.UpdateFrequencyDays .
-                    "`n" . "has update last check: " this.App.HasOwnProp("UpdateAuto") .
-                    "`n" . "last check: " this.App.UpdateLastCheck .
-                    "`n ."
-            )
-        }
+		_Debug("`n" . "has update auto: " this.App.HasOwnProp("UpdateAuto") .
+				"`n" . "update auto: " this.App.UpdateAuto .
+				"`n" . "has update frequency days: " this.App.HasOwnProp("UpdateFrequencyDays") .
+				"`n" . "frequency days: " this.App.UpdateFrequencyDays .
+				"`n" . "has update last check: " this.App.HasOwnProp("UpdateAuto") .
+				"`n" . "last check: " this.App.UpdateLastCheck .
+				"`n ."
+		)
     }
 
     CheckOnStartup(isFirstRun := false) {
@@ -452,7 +450,8 @@ class AutoUpdater {
         
         lblFreq := MyGui.AddText("xm y+12 h30 0x0200", "Check frequency (days)")
         MyGui.SetFont("s" Settings.GuiFontSizeExtraBig " Bold w800")
-        numFreq := MyGui.AddEdit("x+40 w60 h30 0x0200 Number Center", this.App.UpdateFrequencyDays)
+        numFreq := MyGui.AddEdit("x+40 w60 h30 c000000 0x0200 Number Center", this.App.UpdateFrequencyDays)
+		numFreq.BypassTheme := true
         updUpDown := MyGui.AddUpDown("Range1-90", this.App.UpdateFrequencyDays)
         MyGui.SetFont("s" Settings.GuiFontSizeMedium " Norm")
 
@@ -502,6 +501,7 @@ class AutoUpdater {
 		if UseAcrylicGUI {
 			IsSet(ApplyThemeToGui) ? ApplyThemeToGui(MyGui, "Dark") : 0
 			IsSet(FrostedTheme) ? FrostedTheme.Apply(MyGui) : 0
+			ApplyHDRFontQuality(MyGui)
 		} else {
 			IsSet(ApplyThemeToGui) ? ApplyThemeToGui(MyGui) : 0
 			IsSet(WatchedGUIs) ? WatchedGUIs.Push(MyGui) : 0

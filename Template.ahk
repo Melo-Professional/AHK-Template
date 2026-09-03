@@ -3,14 +3,14 @@
 /************************************************************************
  * @description This is a template as a starting point for your AutoHotKey projects.
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/29
+ * @date 2026/09/03
  * @releasedate 2026/04/24
- * @version 3.6.0.100
+ * @version 3.6.1.0
  ***********************************************************************/
 
 AppName := "Template"
 ;@Ahk2Exe-Let U_AppName = %A_PriorLine%
-AppVersion := "3.6.0.100"
+AppVersion := "3.6.1.0"
 ;@Ahk2Exe-Let U_Version = %A_PriorLine%
 AppDescription := "This is a template as a starting point for your AutoHotKey projects. This is a template as a starting point for your AutoHotKey projects."
 ;@endregion
@@ -43,9 +43,9 @@ KeyHistory(0)
 ;#Include *i <_MessageManager>
 ;#Include *i <_TrayIconHandler>
 #Include *i <_Theme>
-;#Include *i <_FrostedTheme>
+#Include *i <_FrostedTheme>
 #Include *i <_TitleBar>
-;#Include *i <_GuiTracker>
+#Include *i <_GuiTracker>
 ;#Include *i <_ModernSlider>
 ;#Include *i <_Color_Picker_Dialog>
 ;#Include *i <_HotkeysRecorder>

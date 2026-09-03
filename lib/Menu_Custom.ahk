@@ -1,13 +1,15 @@
 /************************************************************************
  * @description Robust, Modular Menu (No-Crash Dependency Checking)
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/08/12
- * @version 1.3.2
+ * @date 2026/09/02
+ * @version 1.3.3
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
 
 Menu_Custom() {
+
+	;A_IconTip := ""
 
     TrayMenu := A_TrayMenu
     MoreMenu := TrayMenu.HasProp("MoreMenu") ? TrayMenu.MoreMenu : ""
