@@ -503,19 +503,6 @@ Class OnFocusLoss {
 * ; Inline usage example:
 * result := _Debug(CalculateTotal(10, 20))
 */
-/**
-* @description {@link _Debug|_HelperFuncs.ahk}
-* Inspects variable state and caller stack details, outputting results via ToolTip, file logging, or debug console.
-* *Requires a Debug variable set to true.
-* @param {Any} [val="[CHECKPOINT]"]
-* The value, variable, array, or map to inspect.
-* @param {String} [mode="ToolTip"]
-* Output mode: "ToolTip", "Log", "Both", or "OutputDebug".
-* @param {Integer} [duration=6000]
-* Duration in milliseconds for the ToolTip to display before auto-closing.
-* @returns {Any}
-* Returns the input val unchanged to allow inline debugging within expressions.
-*/
 _Debug(val := "[CHECKPOINT]", mode := "ToolTip", duration := 6000) {
     if !IsSet(Debug) || !Debug
         return
@@ -542,11 +529,11 @@ _Debug(val := "[CHECKPOINT]", mode := "ToolTip", duration := 6000) {
         static activeTips := Map()
         
         ; Find an available ToolTip ID (1 through 20)
-        currentID := 1
+        currentID := 2
         while activeTips.Has(currentID) && currentID <= 20
             currentID++
         if (currentID > 20)
-            currentID := 1
+            currentID := 2
 
         ; Detect Monitor Work Area for the current screen containing the cursor
         CoordMode("ToolTip", "Screen")
