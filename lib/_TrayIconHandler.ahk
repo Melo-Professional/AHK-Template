@@ -1,8 +1,8 @@
 /************************************************************************
  * @description Handles tray icon events
  * @author Melo (melo@meloprofessional.com)
- * @date 2026/09/05
- * @version 1.2.8 (IgnoreNextLeftUp fix)
+ * @date 2026/09/11
+ * @version 1.2.9 (HoverDelay increased to 800)
  ***********************************************************************/
 
 #Requires AutoHotkey v2.0
@@ -62,7 +62,7 @@ class TrayIconHandler {
     _mbuttonActive := false
 
     ; --- Internal State Tracking ---
-    HoverDelay := 600
+    HoverDelay := 800
     LeaveDelay := 200  ; Time tolerance (ms) after leaving before triggering OnLeave
     HoverTimerActive := false
     PaddingBase := 2 ; Base padding before DPI scaling
